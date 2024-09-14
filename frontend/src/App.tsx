@@ -1,14 +1,19 @@
 import { useState, useRef } from "react";
-import "./App.css";
-import { DownloadVideo } from "../wailsjs/go/main/App";
-import fs from "fs";
+import "./index.css";
+import { DownloadVideo, OpenFile, ClipVideo } from "../wailsjs/go/main/App";
+import DropDown from "./components/DropDown";
 
 function App() {
-  const [resultText, setResultText] = useState(
-    "Please enter your name below 👇"
-  );
-  const [name, setName] = useState("");
+  const [videoPath, setVideoPath] = useState("");
+  const [videoURL, setVideoURL] = useState("");
   const urlRef = useRef<HTMLInputElement | null>(null);
+
+  const options = [
+    {
+      id: 1,
+      name: "Open File",
+    },
+  ];
 
   async function downloadVideo() {
     const done = await DownloadVideo(urlRef.current!.value);
@@ -16,9 +21,28 @@ function App() {
     console.log(done);
   }
 
-  function readVideo() {
-    const filePath = "./src/assets/maori-activism.mp4";
+  async function openFile() {
+    try {
+      const filePath = await OpenFile();
 
+      console.log(filePath);
+      if (filePath === "") {
+        console.log("no file selected");
+        return;
+      }
+      const path = `src${filePath}`;
+      setVideoPath(path);
+      readVideo(path);
+    } catch (error) {
+      console.error("Error opening file:", error);
+    }
+  }
+
+  function execFfmpeg() {
+    ClipVideo();
+  }
+
+  function readVideo(filePath: string) {
     fetch(filePath)
       .then((response) => {
         if (!response.ok) {
@@ -32,31 +56,37 @@ function App() {
         const blob = new Blob([arrayBuffer], { type: "video/mp4" });
         const url = URL.createObjectURL(blob);
 
-        // Example: Create a video element and play it
-        const video = document.createElement("video");
-        video.src = url;
-        video.controls = true;
-        document.body.appendChild(video);
+        setVideoURL(url);
       })
       .catch((error) => {
         console.error("Error reading video:", error);
       });
   }
+
   return (
     <div id="App">
-      {/* <img src={logo} id="logo" alt="logo" /> */}
-      <div id="input" className="input-box">
-        <input
-          id="name"
-          className="input"
-          ref={urlRef}
-          autoComplete="off"
-          name="input"
-          type="text"
-        />
-        <button onClick={downloadVideo}>Video ID</button>
-        <button onClick={readVideo}>Read</button>
-      </div>
+      <nav>
+        <DropDown openFile={openFile} options={options} />
+        <div className="input-box">
+          <input
+            className="input"
+            ref={urlRef}
+            autoComplete="off"
+            type="text"
+          />
+          <button id="dl-btn" onClick={downloadVideo}>
+            Download by URL
+          </button>
+          <button id="dl-btn" onClick={execFfmpeg}>
+            Exec Ffmpeg
+          </button>
+        </div>
+      </nav>
+      <main id="main">
+        <div id="layout">
+          <video id="video" src={videoURL} controls />
+        </div>
+      </main>
     </div>
   );
 }
